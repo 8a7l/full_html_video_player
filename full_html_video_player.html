@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Повноцінний HTML відеоплеєр — один файл</title>
+  <style>
+    :root{--bg:#0f1724;--panel:#0b1220;--accent:#3b82f6;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, Arial, sans-serif;background:linear-gradient(180deg,#071029 0%, #081226 100%);color:#e6eef8}
+    .app{max-width:1100px;margin:28px auto;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+    header{display:flex;align-items:center;gap:12px}
+    header h1{font-size:18px;margin:0}
+    .container{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-top:16px}
+    .player-wrap{background:var(--panel);padding:12px;border-radius:10px}
+    video{width:100%;height:calc(100% - 56px);background:#000;border-radius:8px;display:block}
+    .controls{display:flex;align-items:center;gap:8px;padding:8px;margin-top:8px}
+    .btn{background:var(--glass);border:1px solid rgba(255,255,255,0.03);padding:8px;border-radius:8px;cursor:pointer;font-weight:600}
+    .btn:active{transform:scale(0.98)}
+    .seek{flex:1;display:flex;align-items:center;gap:8px}
+    input[type=range]{-webkit-appearance:none;height:6px;border-radius:6px;background:linear-gradient(90deg,var(--accent),#e2e8f0);outline:none}
+    .side{background:var(--panel);padding:12px;border-radius:10px;height:100%}
+    .playlist{max-height:420px;overflow:auto;margin-top:10px}
+    .item{padding:8px;border-radius:8px;margin-bottom:6px;background:transparent;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .item:hover{background:rgba(255,255,255,0.02)}
+    .meta{font-size:13px;color:var(--muted)}
+    .dropzone{border:2px dashed rgba(255,255,255,0.03);padding:14px;border-radius:8px;text-align:center;color:var(--muted);cursor:pointer}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:12px;font-size:13px;color:var(--muted)}
+    .active{outline:2px solid rgba(59,130,246,0.22);background:linear-gradient(90deg, rgba(59,130,246,0.06), transparent)}
+    .flex-col{display:flex;flex-direction:column}
+    .kbd{padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.02);font-weight:600}
+    @media (max-width:980px){.container{grid-template-columns:1fr} .side{order:2}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Повноцінний відеоплеєр (HTML — один файл)</h1>
+      <div class="small">Перетягни файли у поле праворуч або додай через кнопку "Додати"</div>
+    </header>
+
+    <div class="container">
+      <div class="player-wrap">
+        <video id="player" preload="metadata" playsinline tabindex="0">
+          <!-- Tracks (subtitles) додаються динамічно -->
+          Ваш браузер не підтримує відео тег.
+        </video>
+
+        <div class="controls">
+          <button id="play" class="btn">▶</button>
+          <button id="prev" class="btn">⟨⟨</button>
+          <button id="next" class="btn">⟩⟩</button>
+
+          <div class="seek">
+            <span id="timeCurrent" class="small">0:00</span>
+            <input id="seekBar" type="range" min="0" max="100" value="0">
+            <span id="timeTotal" class="small">0:00</span>
+          </div>
+
+          <select id="speed" class="btn">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="1" style="width:90px">
+          <button id="pip" class="btn">PiP</button>
+          <button id="fs" class="btn">⤢</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;justify-content:space-between">
+          <div class="small">Статус: <span id="status">Порожній</span></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label class="btn" style="cursor:pointer"><input id="fileInput" type="file" accept="video/*,.mkv,.webm" multiple style="display:none"> Додати</label>
+            <label class="btn" style="cursor:pointer"><input id="subtitleInput" type="file" accept=".vtt,.srt" style="display:none"> Додати субтитри</label>
+          </div>
+        </div>
+
+        <footer>
+          Клавіші: <span class="kbd">Пробіл</span> — Play/Pause, <span class="kbd">← →</span> — 5s, <span class="kbd">↑ ↓</span> — гучність, <span class="kbd">F</span> — fullscreen, <span class="kbd">C</span> — субтитри on/off
+        </footer>
+      </div>
+
+      <aside class="side">
+        <div class="dropzone" id="drop">Перетягни відео сюди
+          <div class="small">Підтримується MP4, WebM, MKV (залежить від браузера)</div>
+        </div>
+
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <strong>Плейлист</strong>
+          <button id="clear" class="btn">Очистити</button>
+        </div>
+
+        <div class="playlist" id="playlist"></div>
+
+        <div style="margin-top:10px">
+          <label><input id="loop" type="checkbox"> Повторювати</label>
+        </div>
+
+        <div style="margin-top:10px" class="flex-col">
+          <strong>Інформація</strong>
+          <div class="meta">Формат — локальний HTML файл, збереження списку у localStorage</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // Простий, але функціональний відеоплеєр
+    const player = document.getElementById('player');
+    const playBtn = document.getElementById('play');
+    const seekBar = document.getElementById('seekBar');
+    const timeCurrent = document.getElementById('timeCurrent');
+    const timeTotal = document.getElementById('timeTotal');
+    const fileInput = document.getElementById('fileInput');
+    const subtitleInput = document.getElementById('subtitleInput');
+    const statusEl = document.getElementById('status');
+    const playlistEl = document.getElementById('playlist');
+    const drop = document.getElementById('drop');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const clearBtn = document.getElementById('clear');
+    const loopChk = document.getElementById('loop');
+    const speedSel = document.getElementById('speed');
+    const volume = document.getElementById('volume');
+    const pipBtn = document.getElementById('pip');
+    const fsBtn = document.getElementById('fs');
+
+    let playlist = JSON.parse(localStorage.getItem('html-player-playlist')||'[]');
+    let idx = 0;
+
+    function fmt(t){
+      if(!isFinite(t)) return '0:00';
+      const m = Math.floor(t/60); const s = Math.floor(t%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+
+    function updatePlaylistUI(){
+      playlistEl.innerHTML='';
+      playlist.forEach((it,i)=>{
+        const div = document.createElement('div'); div.className='item'+(i===idx?' active':'');
+        const left = document.createElement('div'); left.innerHTML=`<div><strong>${it.name}</strong></div><div class="meta">${it.size}</div>`;
+        const right = document.createElement('div');
+        const loadBtn = document.createElement('button'); loadBtn.textContent='▶'; loadBtn.className='btn'; loadBtn.onclick=()=>{loadIndex(i)};
+        const remBtn = document.createElement('button'); remBtn.textContent='✖'; remBtn.className='btn'; remBtn.onclick=()=>{playlist.splice(i,1); if(i<idx) idx--; if(idx>=playlist.length) idx=playlist.length-1; saveAndRefresh();};
+        right.append(loadBtn,remBtn);
+        div.append(left,right);
+        playlistEl.append(div);
+      });
+    }
+
+    function saveAndRefresh(){ localStorage.setItem('html-player-playlist', JSON.stringify(playlist)); updatePlaylistUI(); }
+
+    function loadIndex(i){ if(!playlist[i]) return; idx=i; const url = playlist[i].url; player.src = url; player.play().catch(()=>{}); statusEl.textContent = `Відтворюється: ${playlist[i].name}`; updatePlaylistUI(); }
+
+    function addFiles(files){
+      for(const f of files){
+        const url = URL.createObjectURL(f);
+        playlist.push({name:f.name,size:humanFileSize(f.size),url});
+      }
+      saveAndRefresh();
+      if(player.paused && playlist.length>0) loadIndex(playlist.length-1);
+    }
+
+    function humanFileSize(bytes){ const thresh=1024; if(Math.abs(bytes)<thresh) return bytes+' B'; const units=['KB','MB','GB','TB']; let u=-1; do{bytes/=1024; u++;}while(Math.abs(bytes)>=thresh && u<units.length-1); return bytes.toFixed(1)+' '+units[u]; }
+
+    // Events
+    playBtn.addEventListener('click', ()=>{ if(player.paused) {player.play();} else {player.pause();}});
+    player.addEventListener('play', ()=>{playBtn.textContent='⏸';});
+    player.addEventListener('pause', ()=>{playBtn.textContent='▶';});
+
+    player.addEventListener('timeupdate', ()=>{
+      const cur = player.currentTime; const dur = player.duration||0;
+      timeCurrent.textContent=fmt(cur); timeTotal.textContent=fmt(dur);
+      if(isFinite(dur) && dur>0){ seekBar.max=dur; seekBar.value=cur; }
+      // auto-next
+      if(player.ended){ if(loopChk.checked){ player.currentTime=0; player.play(); } else { if(idx<playlist.length-1){ loadIndex(idx+1); } else { statusEl.textContent='Завершено'; } } }
+    });
+
+    seekBar.addEventListener('input', ()=>{ player.currentTime = seekBar.value; });
+    speedSel.addEventListener('change', ()=>{ player.playbackRate = parseFloat(speedSel.value); });
+    volume.addEventListener('input', ()=>{ player.volume = parseFloat(volume.value); });
+
+    fileInput.addEventListener('change', (e)=> addFiles(e.target.files));
+    subtitleInput.addEventListener('change', (e)=>{
+      const f = e.target.files[0]; if(!f) return; const url = URL.createObjectURL(f);
+      // remove existing text tracks
+      [...player.querySelectorAll('track')].forEach(t=>t.remove());
+      const track = document.createElement('track'); track.kind='subtitles'; track.label=f.name; track.srclang='uk'; track.src = url; track.default = true; player.append(track);
+      statusEl.textContent = 'Додано субтитри: '+f.name;
+    });
+
+    // Drag & drop
+    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.style.background='rgba(255,255,255,0.02)'; }));
+    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.style.background='transparent'; }));
+    drop.addEventListener('drop', e=>{ const dt = e.dataTransfer; addFiles(dt.files); });
+
+    // Playlist controls
+    prevBtn.addEventListener('click', ()=>{ if(idx>0) loadIndex(idx-1); });
+    nextBtn.addEventListener('click', ()=>{ if(idx<playlist.length-1) loadIndex(idx+1); });
+    clearBtn.addEventListener('click', ()=>{ playlist=[]; idx=0; saveAndRefresh(); player.removeAttribute('src'); player.load(); statusEl.textContent='Порожній'; });
+
+    // keyboard shortcuts
+    document.addEventListener('keydown', e=>{
+      if(e.code==='Space'){ e.preventDefault(); if(player.paused) player.play(); else player.pause(); }
+      if(e.code==='ArrowRight') player.currentTime = Math.min(player.duration||0, player.currentTime + 5);
+      if(e.code==='ArrowLeft') player.currentTime = Math.max(0, player.currentTime - 5);
+      if(e.code==='ArrowUp'){ player.volume = Math.min(1, player.volume + 0.05); volume.value = player.volume; }
+      if(e.code==='ArrowDown'){ player.volume = Math.max(0, player.volume - 0.05); volume.value = player.volume; }
+      if(e.key.toLowerCase()==='f'){ toggleFullScreen(); }
+      if(e.key.toLowerCase()==='c'){ toggleCaptions(); }
+      if(e.key.toLowerCase()==='m'){ player.muted = !player.muted; }
+    });
+
+    // Picture-in-Picture
+    pipBtn.addEventListener('click', async ()=>{
+      try{
+        if(document.pictureInPictureElement) await document.exitPictureInPicture();
+        else await player.requestPictureInPicture();
+      }catch(err){ alert('PiP недоступний у цьому браузері'); }
+    });
+
+    // Fullscreen
+    fsBtn.addEventListener('click', toggleFullScreen);
+    function toggleFullScreen(){ if(!document.fullscreenElement){ player.requestFullscreen().catch(()=>{});} else { document.exitFullscreen().catch(()=>{});} }
+
+    // Captions toggle
+    function toggleCaptions(){ const tracks = player.textTracks; for(let i=0;i<tracks.length;i++){ tracks[i].mode = tracks[i].mode==='showing' ? 'hidden' : 'showing'; } }
+
+    // Save playlist on unload (URLs are blob: and will survive in the session but not across reloads in some browsers)
+    window.addEventListener('beforeunload', ()=>{ localStorage.setItem('html-player-playlist', JSON.stringify(playlist)); });
+
+    // Helpers: load saved playlist
+    function init(){ if(playlist.length>0){ // note: blob urls may be invalid after full page reload in some browsers
+        // if saved entries have object URLs they may be invalid; we only restore metadata and let user re-add files
+        playlist = playlist.map((p)=>({name:p.name,size:p.size,url:p.url}));
+        updatePlaylistUI();
+      }
+    }
+
+    init();
+
+    // small UX: click on playlist element to select
+    playlistEl.addEventListener('click', e=>{
+      const item = e.target.closest('.item'); if(!item) return; const children = Array.from(playlistEl.children); const i = children.indexOf(item); if(i>=0) loadIndex(i);
+    });
+
+    // expose for debugging
+    window._player = player; window._playlist = playlist;
+  </script>
+</body>
+</html>
